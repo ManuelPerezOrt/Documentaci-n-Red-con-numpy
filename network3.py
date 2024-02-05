@@ -1,11 +1,15 @@
 import random #Importa la librería random de Python, que se utiliza para generar números aleatorios
 import numpy as np #Se agregó la librería numpy y la renombramos con np
 
-class CrossEntropyCost(object):
-    def fn(a, y):
+class CrossEntropyCost(object): #Definimos la Clase CroosEntropy
+    def fn(a, y): #calcula el costo de la entropía entre las salidas predichas a y las salidas reales y.
+        #La entropía cruzada es una medida de la diferencia entre dos distribuciones de probabilidad, en este
+        #caso, la distribución de probabilidad predicha a y la distribución de probabilidad real y.
+        #np.nan_to_num se utiliza para evitar problemas con el logaritmo de 0.
         return np.sum(np.nan_to_num(-y*np.log(a)-(1-y)*np.log(1-a)))
 
-    def delta(z, a, y):
+    def delta(z, a, y): #calcula el error de la capa de salida en una red neuronal. Este error se utiliza
+        #durante el algoritmo de retropropagación para actualizar los pesos y sesgos de la red.
         return (a-y)
 
 class Network(object): #Se definió una clase
@@ -13,7 +17,7 @@ class Network(object): #Se definió una clase
     def __init__(self, sizes, cost=CrossEntropyCost): #Es el constructor de la clase Network. 
         #Toma un argumento sizes que es una lista de enteros que representa
         #el número de neuronas en cada capa de la red neuronal
-        self.cost=cost
+        self.cost=cost # Es la función de costo que se utilizará, por defecto es CrossEntropyCost
         self.num_layers = len(sizes) #Número de capas en la red neurona
         self.sizes = sizes #Es una lista que contiene el número de neuronas en cada capa
        self.biases = [np.random.randn(y, 1) for y in sizes[1:]] #Es una lista de matrices
@@ -88,10 +92,10 @@ class Network(object): #Se definió una clase
             activation = sigmoid(z) #Función de activación
             activations.append(activation) #Se almacenan en la lista de activations
         # backward pass
-        delta = (self.cost).delta(zs[-1], activations[-1], y) * sigmoid_prime(zs[-1]) #Se refiere al error en la salida 
-        #de la red neuronal, calculandose como la multiplicación de la diferencia entre la salida de la red neuronal   
-        #y la salida esperada por la derivada de la función de activación sigmoid evaluada en la última capa de la 
-        #red neuronal.     
+        delta = (self.cost).delta(zs[-1], activations[-1], y) * sigmoid_prime(zs[-1]) #Llama a la función delta de la
+        #clase de costo para calcular el error en la salida de la red neuronal, calculandose como la multiplicación de la
+        #diferencia entre la salida de la red neuronal y la salida esperada por la derivada de la función de activación
+        #sigmoid evaluada en la última capa de la red neuronal.     
         nabla_b[-1] = delta #Define que es nabla_b en la última capa 
         nabla_w[-1] = np.dot(delta, activations[-2].transpose()) #Define que es nabla_w en la última capa
         # Note that the variable l in the loop below is used a little
@@ -118,15 +122,11 @@ class Network(object): #Se definió una clase
 
     def cost_derivative(self, output_activations, y): #Mide la diferencia entre la salida de la red neuronal y la
         #salida esperada.
-        """Return the vector of partial derivatives \partial C_x /
-        \partial a for the output activations."""
         return (output_activations-y) 
 
 #### Miscellaneous functions
 def sigmoid(z): #Función sigmoide/de activación
-    """The sigmoid function."""
     return 1.0/(1.0+np.exp(-z))
 
 def sigmoid_prime(z): #Derivada calculada a mano de la función sigmoide
-    """Derivative of the sigmoid function."""
     return sigmoid(z)*(1-sigmoid(z))
