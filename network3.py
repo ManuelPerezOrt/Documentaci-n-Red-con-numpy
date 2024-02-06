@@ -1,14 +1,14 @@
 import random #Importa la librería random de Python, que se utiliza para generar números aleatorios
 import numpy as np #Se agregó la librería numpy y la renombramos con np
 
-class CrossEntropyCost(object): #Definimos la Clase CroosEntropy
-    def fn(a, y): #calcula el costo de la entropía entre las salidas predichas a y las salidas reales y.
+class CrossEntropyCost(object): #Definimos la clase CroosEntropy
+    def fn(a, y): #Calcula el costo de la entropía entre las salidas predichas a y las salidas reales y.
         #La entropía cruzada es una medida de la diferencia entre dos distribuciones de probabilidad, en este
         #caso, la distribución de probabilidad predicha a y la distribución de probabilidad real y.
         #np.nan_to_num se utiliza para evitar problemas con el logaritmo de 0.
         return np.sum(np.nan_to_num(-y*np.log(a)-(1-y)*np.log(1-a)))
 
-    def delta(z, a, y): #calcula el error de la capa de salida en una red neuronal. Este error se utiliza
+    def delta(z, a, y): #Calcula el error de la capa de salida en una red neuronal. Este error se utiliza
         #durante el algoritmo de retropropagación para actualizar los pesos y sesgos de la red.
         return (a-y)
 
@@ -20,11 +20,16 @@ class Network(object): #Se definió una clase
         self.cost=cost # Es la función de costo que se utilizará, por defecto es CrossEntropyCost
         self.num_layers = len(sizes) #Número de capas en la red neurona
         self.sizes = sizes #Es una lista que contiene el número de neuronas en cada capa
-       self.biases = [np.random.randn(y, 1) for y in sizes[1:]] #Es una lista de matrices
+        self.biases = [np.random.randn(y, 1) for y in sizes[1:]] #Es una lista de matrices
         #de b´s para cada capa de la red neuronal
         self.weights = [np.random.randn(y, x) #Es una lista de matrices de w´s para cada capa de la red neuronal
                         for x, y in zip(sizes[:-1], sizes[1:])] 
-
+        # Inicializamos los parámetros para ADAM
+        self.vdW = [np.zeros(w.shape) for w in self.weights] #Es una lista de matrices de g_t para los w
+        self.vdb = [np.zeros(b.shape) for b in self.biases] #Es una lista de matrices de g_t para las b
+        self.sdW = [np.zeros(w.shape) for w in self.weights] #Es una lista de matrices de (g_t)^2 para los w
+        self.sdb = [np.zeros(b.shape) for b in self.biases] #Es una lista de matrices de (g_t)^2 para las b
+    
     def feedforward(self, a): #Toma un argumento "a" que es una matriz de entrada para la red
         #neuronal, realiza todos los procesos dentro de las capas ocultas hacia adelante a través de la red neuronal
         #y devuelve la salida de la red neuronal.
@@ -59,8 +64,8 @@ class Network(object): #Se definió una clase
             else:
                 print("Epoch {0} complete".format(j))
 
-    def update_mini_batch(self, mini_batch, eta): #Definamos la función que se uso anteriormente para actualizar
-        #los w´s y b´s 
+    def update_mini_batch(self, mini_batch, eta, t, beta1=0.9, beta2=0.999, epsilon=1e-8): #Definamos la función que 
+        #se uso anteriormente para actualizar los w´s y b´s 
         nabla_b = [np.zeros(b.shape) for b in self.biases] #Llena la matriz nabla_b de ceros con np.zeros
         nabla_w = [np.zeros(w.shape) for w in self.weights] #Llena la matriz nabla_w de ceros con np.zeros
         for x, y in mini_batch: #Itera sobre cada elemento del mini-batch y utiliza
@@ -70,12 +75,23 @@ class Network(object): #Se definió una clase
             #los gradientes de cada una de las b´s
             nabla_w = [nw+dnw for nw, dnw in zip(nabla_w, delta_nabla_w)] #Se suman a la matriz nabla w
             #los gradientes de cada una de las w´s
-        self.weights = [w-(eta/len(mini_batch))*nw
-                        for w, nw in zip(self.weights, nabla_w)] #Los w´s se actualizan restandole a los pesos
-            #la multiplicación de nabla_w por la división de la taza de aprendizaja con el tamaño del mini_batch
-        self.biases = [b-(eta/len(mini_batch))*nb
-                       for b, nb in zip(self.biases, nabla_b)] #Los b´s se actualizan restandole a los biases
-            #la multiplicación de nabla_b por la división de la taza de aprendizaja con el tamaño del mini_batch
+
+        # Implementación de ADAM
+        for i in range(len(self.weights)):
+            self.vdW[i] = beta1*self.vdW[i] + (1-beta1)*nabla_w[i] #Aquí se calcula g_t para los w
+            self.vdb[i] = beta1*self.vdb[i] + (1-beta1)*nabla_b[i] #Aquí se calcula g_t para las b
+            self.sdW[i] = beta2*self.sdW[i] + (1-beta2)*(nabla_w[i]**2) #Aquí se calcula (g_t)^2 para los w
+            self.sdb[i] = beta2*self.sdb[i] + (1-beta2)*(nabla_b[i]**2) #Aquí se calcula (g_t)^2 para las b
+            
+        # Se realizan una corrección de sesgo para tener en cuenta el hecho de que estamos inicializando 
+            #con ceros es la modificación para entrenamiento lento al inicio.
+            vdw_corrected = self.vdW[i] / (1-beta1**t)
+            vdb_corrected = self.vdb[i] / (1-beta1**t)
+            sdw_corrected = self.sdW[i] / (1-beta2**t)
+            sdb_corrected = self.sdb[i] / (1-beta2**t)
+        #Los w´s se actualizan y los b´s se actualizan, estas son las thetas para w y b
+            self.weights[i] -= eta * vdw_corrected / (np.sqrt(sdw_corrected) + epsilon) 
+            self.biases[i] -= eta * vdb_corrected / (np.sqrt(sdb_corrected) + epsilon)
 
     def backprop(self, x, y): #Definimos backprop, es utilizada para calcular el gradiente de la función de costo
         nabla_b = [np.zeros(b.shape) for b in self.biases] #Llena la matriz nabla_b de ceros con np.zeros
@@ -98,12 +114,6 @@ class Network(object): #Se definió una clase
         #sigmoid evaluada en la última capa de la red neuronal.     
         nabla_b[-1] = delta #Define que es nabla_b en la última capa 
         nabla_w[-1] = np.dot(delta, activations[-2].transpose()) #Define que es nabla_w en la última capa
-        # Note that the variable l in the loop below is used a little
-        # differently to the notation in Chapter 2 of the book.  Here,
-        # l = 1 means the last layer of neurons, l = 2 is the
-        # second-last layer, and so on.  It's a renumbering of the
-        # scheme in the book, used here to take advantage of the fact
-        # that Python can use negative indices in lists.
         for l in range(2, self.num_layers): #El ciclo itera sobre cada una de las capas de la red
             z = zs[-l] #Definimos z como la z de la última capa
             sp = sigmoid_prime(z) #llamamos sp a la derivada de la sigmoide evaluada en z
