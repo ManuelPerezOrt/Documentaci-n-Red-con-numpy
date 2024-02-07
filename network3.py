@@ -10,7 +10,7 @@ class CrossEntropyCost(object): #Definimos la clase CroosEntropy
 
     def delta(z, a, y): #Calcula el error de la capa de salida en una red neuronal. Este error se utiliza
         #durante el algoritmo de retropropagación para actualizar los pesos y sesgos de la red.
-        return (a-y)
+        return (a-y)/(a(1-(a+1e-9)))
 
 class Network(object): #Se definió una clase
 
